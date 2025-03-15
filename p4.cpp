@@ -595,6 +595,10 @@ void server() {
 }
 
 
+// HANDLE CLIENT SIDE
+
+
+
 
 int check(in_addr_t ip, in_port_t port, const std::string &path) {
     int socket_fd = connect_to(ip, port); // make the socket needed. 
@@ -658,11 +662,14 @@ int load(in_addr_t ip, in_port_t port, const std::string &path)
 {
     // TODO: Check if file exists, then print file and return zero if exists otherwise return 1
 
+    // Open the socket
     int socket_fd = connect_to(ip, port);
     if(socket_fd < 0) {
         return 1;
     }
 
+
+    // make the string to send to the server with LOAD as the command 
     std::string command = "LOAD ";
     std::string command_string = command + path;
     uint32_t command_length = command_string.size();
@@ -686,35 +693,44 @@ int load(in_addr_t ip, in_port_t port, const std::string &path)
 
     // TODO: check for errors
 
-    // int check =0;
-
-    // int reality_check = recv(socket_fd, &check, sizeof(check),0);
+    // hold the length data from the server as the first recieve. 
     uint32_t check = 0;
     int reality_check = recv(socket_fd, &check, sizeof(check), 0);
 
+    // make sure reciption went good. 
     if(reality_check != sizeof(check)){
         close(socket_fd);
         return 1;
     }
 
+    // check went bad. 
     if(check == 1){
         close(socket_fd);
         return 1;
     }
 
     // TODO: Recieve the incoming bytes of the file and print them. 
-    // PROBLEM IS THE RECIEVING OF THE FUNCTION. 
-    // trailing new line and null characters at the start. 
 
-    std::vector<char> buffer(check);
+    std::vector<char> buffer(check); // holds all the file data coming in from the server in a vecotr. 
+    
+    // keep count of all the char revieved for checks later
     size_t total_received = 0;
+    
+    // Get all the string from the and check and make sure its not above the given amount of bytes.
+
     while(total_received < check) {
+
+        // getting the message fron the server
         reality_check = recv(socket_fd, buffer.data() + total_received, check - total_received, 0);
+
+        // making sure a error does not occur. 
         if(reality_check<= 0) {
             std::cerr << "Error receiving file data" << std::endl;
             close(socket_fd);
             return 1;
         }
+
+        // update the count. 
         total_received += reality_check;
     }
     
@@ -734,8 +750,11 @@ int load(in_addr_t ip, in_port_t port, const std::string &path)
 
 
 int store(in_addr_t ip, in_port_t port, const std::string &path){
+
+    // open socket. 
     int socket_fd = connect_to(ip, port);
 
+    // check for failur. 
     if(socket_fd < 0) {
         std::cout<< "Failed to connect to server" << std::endl;
         return 1;  // return an error value
@@ -763,7 +782,7 @@ int store(in_addr_t ip, in_port_t port, const std::string &path){
 
 
     
-
+    // get the input from the user. 
     std::string line;
     std::string fullInput;
     char c;
@@ -806,9 +825,11 @@ int delete_file(in_addr_t ip, in_port_t port, const std::string &path){
         return 1;
     }
 
+    // Make the command string. 
     std::string command = "DELETE ";
     std::string command_string = command + path;
     
+    // get the size of the string. 
     int command_length = command_string.size();
 
     //send message size

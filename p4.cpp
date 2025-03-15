@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
 
         // check will return a 0 is good and 1 if not there. 
         int answer  = check(parse_ip(argv[2]), parse_port(argv[3]), std::string(argv[4]));
-        std::cout << answer<< std::endl;  // print answer. 
+       
         return answer;
 
     } 
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 
         // check will return a 0 is good and 1 if not there. 
         int answer  = load(parse_ip(argv[2]), parse_port(argv[3]), std::string(argv[4]));
-        std::cout << answer<< std::endl;  // print answer. 
+      
         return answer;
 
     } 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
 
         // check will return a 0 is good and 1 if not there. 
         int answer  = store(parse_ip(argv[2]), parse_port(argv[3]), std::string(argv[4]));
-        std::cout << answer<< std::endl;  // print answer. 
+     
         return answer;
 
     } 
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
         }
 
         int answer = delete_file(parse_ip(argv[2]), parse_port(argv[3]), std::string(argv[4]));
-        std::cout<< answer << std::endl;
+       
         return answer;
     }
 
@@ -399,10 +399,11 @@ void server() {
 
         // TODO: Seperate the message. 
         std::string msg(message); // helps split apart message. 
-        delete[] message; // clean up message. 
+        delete[] message; // clean up message. So the original doesn't linger. 
 
         std::istringstream iss(msg); // needed to get the file path. 
 
+        //TODO: Cleint will pass in the command they want to do and from there it will go to the command in the if statements. 
         std::string command; // the command that is given from the user. 
         iss>>command; // get the command 
         
@@ -414,19 +415,24 @@ void server() {
             std::string filepath;
             iss>>filepath;
            
+            // Buffer to hold the string from the stat sys call. 
             struct stat buffer;
             bool exists = (stat(filepath.c_str(), &buffer) == 0); // use the stat system call fill the buffer. 
 
             int answer = 0; // file is good
 
+            // Make sure the correct output is returned to client 
             if(exists == false){
                 answer = 1;
             }
 
+            // getting size of answer for the send. 
             int answer_size = sizeof(answer);
 
             send(connection_fd, &answer, answer_size, 0);
         }
+
+
 
         // TODO: Server handles the Load command == Open file and send the message back
         else if(command == "LOAD")
@@ -450,22 +456,32 @@ void server() {
                 continue;
             }
 
-            // get the file size, and set pointer back the begining
-            infile.seekg(0, std::ios::end); // pointer to end
-            std::streamsize file_size = infile.tellg(); // get the file size
-            infile.seekg(0,std::ios::beg); // set back to the start
+            //get the file size, and set pointer back the begining
+
+            infile.seekg(0, std::ios::end); // go to the end of the fole.
+            // making sure the headers match up on the send and receive so it doesn't get messed up. 
+            uint32_t file_size = static_cast<uint32_t>(infile.tellg()); // get the size of the file in the correct format. 
+            infile.seekg(0, std::ios::beg);// pointer goes back to start of the file
+
+            // Send the size of the file that is loaded to the client for recieveing. 
+            send(connection_fd, &file_size, sizeof(file_size), 0);
+
+
+            
+
             
             // send back the file size so the first chars arent missing. 
-            send(connection_fd, &file_size, sizeof(file_size), 0);
+            // send(connection_fd, &file_size, sizeof(file_size), 0);
                 
             
             // array to hold message to send. 
-            char buffer[10000];
+            char buffer[1024];
 
             // While there is data send to the client. 
             while(infile){
 
-                infile.read(buffer, 10000);// send 1024 bytes to the buffer. 
+                infile.read(buffer, 1024);// send 1024 bytes to the buffer. 
+
                 // get the actual count of the file. 
                 int total = infile.gcount();
 
@@ -474,13 +490,15 @@ void server() {
                     // make sure we dont go above current
                     int count = 0;
 
-                   
-                    while(count <= total){
+                   // make sure we are not going over the total amount of the file size. 
+                    while(count < total){
 
                         // send message to the client,
                         // buffer needs to be where count is pointing to, 
                         // get the length of the message by doing the total - count. 
                         int size = total - count;
+
+                        // send the buffer that is loaded to the client. 
                         int push = send(connection_fd, &buffer[count], size, 0);
 
                         // update the count with the amount of bytes pushed
@@ -490,6 +508,8 @@ void server() {
             }
             infile.close();
         }
+
+        // TODO: Get the user input and store in a file or create a new file. 
         else if(command == "STORE")
         {
 
@@ -512,21 +532,27 @@ void server() {
                 continue;
             }
 
+            // data is what the client has typed in and what we will be recieving. 
             int data = 0;
             int recive = recv(connection_fd, &data, sizeof(data),0);
 
+          
             std::string file_data;
-
+            // make sure the string is big enough to hold the data. that is coming from the client. 
             file_data.resize(data);
 
-            int total = 0;
-
+            int total = 0; // counter to hold total data recieved from the client. 
+            
+            // get the data from the client. 
             while(total< data){
                 int x = recv(connection_fd, &file_data[total], data - total, 0);
                 total += x;
             }
 
+            // write the data as a string to the open file. 
             outFile.write(file_data.c_str(), total);
+
+            // Clean up file and connection. 
             outFile.close();
             close(connection_fd);
         }
@@ -660,9 +686,12 @@ int load(in_addr_t ip, in_port_t port, const std::string &path)
 
     // TODO: check for errors
 
-    uint32_t check =0;
+    // int check =0;
 
-    int reality_check = recv(socket_fd, &check, sizeof(check),0);
+    // int reality_check = recv(socket_fd, &check, sizeof(check),0);
+    uint32_t check = 0;
+    int reality_check = recv(socket_fd, &check, sizeof(check), 0);
+
     if(reality_check != sizeof(check)){
         close(socket_fd);
         return 1;
@@ -674,6 +703,8 @@ int load(in_addr_t ip, in_port_t port, const std::string &path)
     }
 
     // TODO: Recieve the incoming bytes of the file and print them. 
+    // PROBLEM IS THE RECIEVING OF THE FUNCTION. 
+    // trailing new line and null characters at the start. 
 
     std::vector<char> buffer(check);
     size_t total_received = 0;
@@ -689,12 +720,12 @@ int load(in_addr_t ip, in_port_t port, const std::string &path)
     
     // Print the file contents.
     std::cout.write(buffer.data(), total_received);
-    std::cout << std::endl;
+    
 
     // close socket after reading
     close(socket_fd);
 
-    std::cout << std::endl;
+    
     return 0;// return all good. 
     
 }
@@ -731,19 +762,23 @@ int store(in_addr_t ip, in_port_t port, const std::string &path){
     }
 
 
-
-
     
 
     std::string line;
     std::string fullInput;
+    char c;
 
-    while (std::getline(std::cin, line)) {
-        fullInput += line + "\n"; // Append the line with a newline
+    std::cin>>std::noskipws;
+    
+    
+
+    while (std::cin>>c) {
+        fullInput += c; // Append the line with a newline
     }
 
-    std::cout << "You entered:" << std::endl;
-    std::cout << fullInput;
+    
+
+   
     
     // Send the size of the input string first.
     int input_size = fullInput.size();

@@ -1,21 +1,43 @@
-Aaron Shrestha
-p4
+# P4 File System Operations
 
-Server: ./p4 server
-This will start the server to start recieving commands and messages from the user.
-It will handle all the file system calls 
+## Overview
 
-Check: p4 check <ip> <port> <path>
-This will check if the path at the given ip and port exists or not by running a 
-stat sys call on the file system. It will returna 0 if there is a file and 1 otherwise
+The `p4` program provides a set of file system operations that allow users to start a server, check file existence, load, store, and delete files.
 
-Load: p4 load <ip> <port> <path>
-This will go to the given file if it exsists and take all the values from the file. Then return
-the user everything in the file. 
+---
 
-Store: p4 store <ip> <port> <path>
-This will take in user input on the client side until ctrl + D is pressed. Then take that string and 
-place it within the given file or create a new file and place the string in there
+## Commands
 
-Delete: p4 delete <ip> <port> <path>
-This will take  a path from the user and go to that file if it exists and delete it. 0 returns if file is sucessfully deleted and returns 1 otherwise. 
+### 1. Start Server
+
+./p4 server
+
+
+## 2. p4 check
+This command checks if the specified path at the given IP and port exists by running a stat system call on the file system.
+
+Return Values:
+0 → File exists
+1 → File does not exist
+
+## 3. p4 load
+If the specified file exists, this command retrieves all values from the file and returns the contents to the user.
+
+## 4. p4 store
+This command allows the user to input data on the client side. The input continues until Ctrl + D is pressed. The data is then written into the specified file. If the file does not exist, a new file is created.
+
+## 5. p4 delete
+This command deletes the specified file if it exists.
+
+Return Values:
+0 → File successfully deleted
+1 → File deletion failed
+
+## Example usage
+```
+./p4 server  # Start the server
+p4 check /path/to/file  # Check if a file exists
+p4 load /path/to/file  # Load and display file contents
+p4 store /path/to/file  # Store user input into a file
+p4 delete /path/to/file  # Delete a file
+```
